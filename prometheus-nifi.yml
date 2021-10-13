@@ -1,0 +1,58 @@
+-   job_name: nifi-prod-prometheus-reporting-task
+    scheme: http
+    scrape_interval: 300s
+    scrape_timeout: 60s
+    static_configs:
+    -   labels:
+            dp_env: prod
+        targets:
+        - nifi1:9092
+        - nifi2:9092
+        - nifi3:9092
+        - nifi4:9092
+-   job_name: blackbox_exporter_tcp_connect
+    metrics_path: /probe
+    params:
+        module:
+        - tcp_connect
+    relabel_configs:
+    -   source_labels:
+        - __address__
+        target_label: __param_target
+    -   source_labels:
+        - __param_target
+        target_label: instance
+    static_configs:
+    -   labels:
+            category: web
+            dp_app: nifi
+            dp_env: prod
+            port: '8443'
+            type: availability
+        targets:
+        - 10.1.1.1:8443
+        - 10.1.1.2:8443
+        - 10.1.1.3:8443
+        - 10.1.1.4:8443
+        - 10.1.1.5:8443
+    -   labels:
+            category: web
+            dp_app: nifi
+            dp_env: prod
+            port: '8443'
+            role: master
+            type: availability
+        targets:
+        - 10.220.51.24:8444
+    -   labels:
+            category: ssh
+            dp_app: nifi
+            dp_env: prod
+            port: '22'
+            type: availability
+        targets:
+        - 10.1.1.1:22
+        - 10.1.1.2:22
+        - 10.1.1.3:22
+        - 10.1.1.4:22
+        - 10.1.1.5:22
