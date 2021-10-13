@@ -1,0 +1,40 @@
+groups:
+-   name: nifi
+    rules:
+    -   alert: nifi-prod-cluster-unbalanced
+        annotations:
+            dashboard: http://grafana.data.lmru.tech/d/11HBcV3Zz/nifi?orgId=1&var-instance=prod&var-component=All&var-bulletins_component=All&var-prefix=p
+            description: '{{ $labels.service }} {{ $labels.dp_env }} unbalanced cluster'
+            summary: CPU load diff between cluster nodes = {{ $value }}% (>50) for
+                30min
+        expr: (max(1 - (avg_over_time (avg by (instance) (irate(node_cpu_seconds_total{dp_app="nifi",dp_env="prod",mode="idle"}[1m]))
+            [5m:1m]))) - min(1 - (avg_over_time (avg by (instance) (irate(node_cpu_seconds_total{dp_app="nifi",dp_env="prod",mode="idle"}[1m]))
+            [5m:1m])))) * 100
+        for: 30m
+        labels:
+            dp_app: nifi
+            service: NiFi
+            severity: warning
+    -   alert: nifi-disconnected-nodes
+        annotations:
+            description: NiFi {{ $labels.dp_env }} cluster {{ $value }} node(s) is
+                not connected
+            summary: NiFi {{ $labels.dp_env }} disconnected nodes found
+        expr: max by (dp_env) (label_replace(nifi_cluster_status_disconnected, "dp_env",
+            "$1", "env", "(.*)")) > 0
+        for: 10m
+        labels:
+            service: NiFi
+            severity: critical
+    -   alert: nifi-putsql-backpressure
+        annotations:
+            description: NiFi {{ $labels.dp_env }} cluster {{ $value }} nodes have
+                backpressure enabled for processor {{ $labels.destination_name }}
+            summary: NiFi {{ $labels.dp_env }} {{ $labels.destination_name }} processor
+                backpressure
+        expr: sum(nifi_backpressure_enabled{destination_name=~".*_(PutSQL|PutDatabaseRecord)"})
+            by (destination_name, dp_env) > 0
+        for: 15m
+        labels:
+            service: NiFi
+            severity: info
