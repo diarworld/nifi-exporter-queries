@@ -1,0 +1,68 @@
+groups:
+-   name: nifi
+    rules:
+    -   alert: nifi-prod-cluster-unbalanced
+        annotations:
+            dashboard: http://grafana.data.lmru.tech/d/11HBcV3Zz/nifi?orgId=1&var-instance=prod&var-component=All&var-bulletins_component=All&var-prefix=p
+            description: '{{ $labels.service }} {{ $labels.dp_env }} unbalanced cluster'
+            summary: CPU load diff between cluster nodes = {{ $value }}% (>50) for
+                30min
+        expr: (max(1 - (avg_over_time (avg by (instance) (irate(node_cpu_seconds_total{dp_app="nifi",dp_env="prod",mode="idle"}[1m]))
+            [5m:1m]))) - min(1 - (avg_over_time (avg by (instance) (irate(node_cpu_seconds_total{dp_app="nifi",dp_env="prod",mode="idle"}[1m]))
+            [5m:1m])))) * 100
+        for: 30m
+        labels:
+            dp_app: nifi
+            service: NiFi
+            severity: warning
+    -   alert: base-CPU-load
+        annotations:
+            description: CPU Load is over 95% at {{ $labels.instance }} for more than
+                10m
+            summary: CPU Load over 95% {{ $labels.instance }}
+        expr: ((((count by(instance, dp_env) (count by(instance, cpu, dp_env) (node_cpu_seconds_total{job="consul"})))
+            - avg by(instance, dp_env) (sum by(instance, mode, dp_env) (irate(node_cpu_seconds_total{job="consul",mode="idle"}[5m])))
+            - avg by(instance, dp_env) (sum by(instance, mode, dp_env)(irate(node_cpu_seconds_total{job="consul",mode="iowait"}[5m]))))
+            * 100) / count by(instance, dp_env) (count by(instance, cpu, dp_env) (node_cpu_seconds_total)))
+            >= 95
+        for: 5m
+        labels:
+            severity: info
+    -   alert: base-node-down
+        annotations:
+            description: '{{ $labels.instance }} of job {{ $labels.job }} has been
+                down for more than 5 minute'
+            summary: Node {{ $labels.instance }} down
+        expr: up{job="consul",service="node", dp_app="nifi"} == 0
+        for: 5m
+        labels:
+            severity: warning
+            service: NiFi
+            dp_env: prod
+    -   alert: base-node-used-data
+        annotations:
+            description: Filesystem (/data*) using is over 90% at {{ $labels.instance
+                }}
+            summary: FS (/data*) using over 90% {{ $labels.instance }}
+        expr: (100 - ((node_filesystem_avail_bytes{mountpoint=~"/data.*",  dp_app="nifi"}
+            * 100) / node_filesystem_size_bytes{mountpoint=~"/data.*", dp_app="nifi"}))
+            >= 70
+        for: 5m
+        labels:
+            severity: warning
+    -   alert: gp-cpu-waits
+        annotations:
+            dashboard: http://grafana.data.lmru.tech/d/n3ntaHoWz/node-monitoring?var-node={{
+                $labels.instance | reReplaceAll ":9100" "" }}
+            description: CPU waits (iowait/irq/softirq/steal) are to high at {{ $labels.instance
+                }}
+            operatorhelpurl: https://portal.support24.online/display/CD/LMDGP+-+Operator%27s+Help
+            summary: CPU waits are to high at {{ $labels.instance }}
+        expr: (avg by(instance) (rate(node_cpu_seconds_total{mode=~"iowait|irq|softirq|steal",
+            instance=~"p-dtpl-[s,m]dw.*"}[5m])) * 100) > 5
+        for: 5m
+        labels:
+            dp_env: prod
+            service: NiFi
+            severity: high
+
