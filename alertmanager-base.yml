@@ -50,7 +50,7 @@ groups:
         for: 5m
         labels:
             severity: warning
-    -   alert: gp-cpu-waits
+    -   alert: nifi-cpu-waits
         annotations:
             dashboard: http://grafana.data.lmru.tech/d/n3ntaHoWz/node-monitoring?var-node={{
                 $labels.instance | reReplaceAll ":9100" "" }}
@@ -59,7 +59,7 @@ groups:
             operatorhelpurl: https://portal.support24.online/display/CD/LMDGP+-+Operator%27s+Help
             summary: CPU waits are to high at {{ $labels.instance }}
         expr: (avg by(instance) (rate(node_cpu_seconds_total{mode=~"iowait|irq|softirq|steal",
-            instance=~"p-dtpl-[s,m]dw.*"}[5m])) * 100) > 5
+            dp_app="nifi"}[5m])) * 100) > 5
         for: 5m
         labels:
             dp_env: prod
